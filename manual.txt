@@ -1,0 +1,86 @@
+kuaa-admin - MANUAL DO PROJETO (Regras 1.1)
+Atualizado: 2026-10-20
+
+1. O QUE E
+   Painel/preview interno do ecossistema kuaa. React 19 + Vite 7 + Tailwind 4
+   (shadcn/ui), TypeScript estrito, pnpm, server Express que so serve arquivos
+   estaticos (SPA fallback, porta 3000 - NAO ha backend proprio). Duas areas:
+   "Intermediadora" (admin de provas: import de bancos, revisao humana de
+   gabaritos, gerador sintetico de provas, revisao) e "Estudante" (preview das
+   telas do app do estudante: provas, quiz, ritmo de estudo). Publica tambem
+   como PWA e app Android via Capacitor (appId app.kuaa.admin, webDir dist/public).
+   Ferramenta interna: nao passa por loja, nao tem login proprio (Drive opcional).
+   NAO e repositorio git - nao ha commits/push a fazer aqui (commits sao nos
+   projetos separados: kuaa-app e KuaaRepo).
+
+2. COMO RODAR / VALIDAR
+   pnpm install
+   pnpm dev ......... vite dev server (--host); http://localhost:5173/
+   pnpm check ....... tsc --noEmit (checagem pura)
+   pnpm test ........ vitest - suite do motor de dificuldade (34 testes)
+   pnpm build ....... vite build + esbuild do server -> dist/
+   pnpm start ....... producao (node dist/index.js)
+   CLI de lote: pnpm tsx scripts/classificar-dificuldade.ts <arquivo|pasta> --csv
+
+3. ESTRUTURA
+   client/src/App.tsx ............ rotas wouter (patch em patches/wouter@3.7.1.patch
+                                  registra rotas p/ deteccao em file://)
+   client/src/pages/Home.tsx ... app inteira (~270KB): estado View
+                                  ("admin" | "student" | "dificuldade"), sidebar,
+                                  termos, persistencia (IndexedDB/Drive)
+   client/src/pages/AdminPreviewNew.tsx ... visao admin (~110KB)
+   client/src/pages/Dificuldade.tsx ....... ferramenta de dificuldade (secao 5)
+   client/src/pages/dificuldade/ .......... abas: Avaliador, Lote, Amostras,
+                                  Config, comum (blocos visuais)
+   client/src/lib/ ............... bibliotecas (kuaaFormat = modelo de questao e
+                                  niveis, driveBackup, performanceHistory,
+                                  triAdaptativa...)
+   client/src/components/ ........ componentes da app; ui/ = primitivas shadcn
+   client/src/index.css .......... tema (papel marfim, --background #f8f5ed)
+   server/index.ts ............... express estatico + fallback index.html
+   shared/ ....................... codigo compartilhado (@shared/*) - client e server
+   shared/dificuldade/ ........... MOTOR de dificuldade (tipos/config/motor/lotes
+                                  + testes com paridade contra o original)
+   scripts/ ...................... utilitarios avulsos (tsx/mjs/py), fora do bundle
+   android/ ...................... projeto Capacitor
+   tsconfig.json ......... target ES2020 (obrigatorio: sem ele o tsc proibe
+                                  iterar Map/Set); paths @/* e @shared/*
+
+4. CREDENCIAIS - ONDE FICAM (nunca o conteudo aqui)
+   Backup Google Drive / OAuth: client/src/lib/driveBackup.ts
+   Variaveis de ambiente: .env (VITE_*) - o build avisa de
+   %VITE_ANALYTICS_ENDPOINT%/%VITE_ANALYTICS_WEBSITE_ID% no index.html (normal).
+
+5. FERRAMENTA DE CLASSIFICACAO DE DIFICULDADE (entrega 2026-10-20)
+   Heuristica nivel 1-5 que classificou as 33 mil questoes do KuaaRepo, agora
+   ferramenta recorrente e totalmente parametrizavel.
+   - Entradas: rota /dificuldade (bookmarkable) ou sidebar "Dificuldade" (03).
+   - Motor unico em shared/dificuldade/ consumido por 3 camadas: UI, testes
+     (pnpm test) e CLI (pnpm tsx scripts/classificar-dificuldade.ts).
+   - Paridade com o original C:\APPS\Kuaa\scripts\avaliar-dificuldade.js testada
+     automaticamente (pula se essa pasta nao existir).
+   - Abas: Avaliar (ao vivo) | Lote (JSON local + KuaaRepo remoto, export
+     JSON/CSV) | Amostras (rotulo humano + metricas do motor) | Configuracao
+     (parametros, areas, pesos, perfis, import/export).
+   - Persistencia: localStorage com prefixo kuaa-dificuldade- (config, perfis,
+     perfil ativo, rotulos, ultima aba).
+   - Perfis embutidos: Padrao (gerador BNCC), Sensivel, Estrutural, Vestibular.
+
+6. ARMADILHAS CONHECIDAS
+   - Home.tsx e AdminPreviewNew.tsx sao monolitos: edicoes devem ser cirurgicas.
+   - Apos mudar opcoes do tsconfig, se o tsc insistir em erro velho, apagar
+     node_modules/typescript/tsbuildinfo (cache incremental).
+   - Avisos do build sobre %VITE_ANALYTICS_* e chunk >500kB sao pre-existentes.
+   - Abas usam forceMount (estado local sobrevive a troca de aba).
+   - CHANGES.md = historico de entregas por lote; log.txt = diario por etapas.
+   - Projetos irmaos (repositorios separados, com git proprio):
+     C:\APPS\Kuaa\kuaa-app (app do estudante, publicado como kuaa v1.8) e
+     C:\APPS\Kuaa\KuaaRepo (banco de questoes, 33 pacotes no GitHub
+     wavizo-bot/KuaaRepo); o motor de geracao e C:\APPS\Kuaa\scripts.
+
+7. VERSOES E TIMELINE
+   Fonte unica de versao: client/src/version.ts -> APP_VERSION = "1.7".
+   2026-09-14 ....... CHANGES.md "batch 4" (2 colunas no synthetic-generator,
+                       filtros/quiz do student, historico de performance).
+   2026-10-20 ....... Ferramenta de dificuldade (motor + UI + CLI + testes);
+                       primeiro log.txt e manual.txt do projeto (Regras 1.1/1.2).
